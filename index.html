@@ -71,42 +71,6 @@
                 </div>
             </div>
 
-            <!-- Stats Dashboard -->
-            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <!-- Stats: Total Answered -->
-                <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 flex items-center space-x-4">
-                    <div class="p-3 bg-indigo-50 text-indigo-600 rounded-xl">
-                        <i class="fa-solid fa-layer-group text-2xl"></i>
-                    </div>
-                    <div>
-                        <div class="text-xs text-slate-500 font-medium">총 학습 횟수</div>
-                        <div id="stat-total" class="text-2xl font-bold text-slate-800">0</div>
-                    </div>
-                </div>
-
-                <!-- Stats: Known Count -->
-                <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 flex items-center space-x-4">
-                    <div class="p-3 bg-emerald-50 text-emerald-600 rounded-xl">
-                        <i class="fa-solid fa-circle-check text-2xl"></i>
-                    </div>
-                    <div>
-                        <div class="text-xs text-slate-500 font-medium">외운 한자</div>
-                        <div id="stat-known" class="text-2xl font-bold text-slate-800">0</div>
-                    </div>
-                </div>
-
-                <!-- Stats: Review Count -->
-                <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 flex items-center space-x-4">
-                    <div class="p-3 bg-rose-50 text-rose-600 rounded-xl">
-                        <i class="fa-solid fa-bookmark text-2xl"></i>
-                    </div>
-                    <div>
-                        <div class="text-xs text-slate-500 font-medium">복습 필요한 한자</div>
-                        <div id="stat-review" class="text-2xl font-bold text-slate-800">0</div>
-                    </div>
-                </div>
-            </div>
-
             <!-- Flashcard Card -->
             <div class="bg-white rounded-3xl shadow-md border border-slate-200 overflow-hidden relative">
                 <div class="p-6 md:p-12 text-center flex flex-col items-center min-h-[380px] justify-between">
@@ -250,6 +214,7 @@
             { hanzi: "者", mean: "사람 자" },
             { hanzi: "安", mean: "편안할 안" },
             { hanzi: "失", mean: "잃을 실" }
+
         ];
 
         // App State
@@ -262,15 +227,9 @@
         let roundKnown = 0;
         let roundUnknown = 0;
 
-        let stats = {
-            total: 0,
-            known: 0
-        };
-
         let wrongAnswers = JSON.parse(localStorage.getItem("hanzi_wrong_notes") || "[]");
 
         window.onload = function() {
-            loadStats();
             updateWrongBadge();
             initDeck();
             generateQuestion();
@@ -333,10 +292,7 @@
         }
 
         function handleEvaluation(isKnown) {
-            stats.total++;
-
             if (isKnown) {
-                stats.known++;
                 roundKnown++;
                 showToast("외운 한자로 기록되었습니다!");
             } else {
@@ -344,9 +300,6 @@
                 addWrongNote(currentQuestion);
                 showToast("복습 노트에 추가되었습니다.");
             }
-
-            saveStats();
-            updateStatsUI();
 
             // Advance to next question in deck
             currentIndex++;
@@ -367,24 +320,6 @@
             showToast("새로운 순서로 퀴즈를 시작합니다!");
         }
 
-        function saveStats() {
-            localStorage.setItem("hanzi_stats_flashcard", JSON.stringify(stats));
-        }
-
-        function loadStats() {
-            const saved = localStorage.getItem("hanzi_stats_flashcard");
-            if (saved) {
-                stats = JSON.parse(saved);
-            }
-            updateStatsUI();
-        }
-
-        function updateStatsUI() {
-            document.getElementById("stat-total").innerText = stats.total;
-            document.getElementById("stat-known").innerText = stats.known;
-            document.getElementById("stat-review").innerText = wrongAnswers.length;
-        }
-
         function addWrongNote(item) {
             if (!wrongAnswers.some(w => w.hanzi === item.hanzi)) {
                 wrongAnswers.push(item);
@@ -399,7 +334,6 @@
             localStorage.setItem("hanzi_wrong_notes", JSON.stringify(wrongAnswers));
             updateWrongBadge();
             renderWrongNotes();
-            updateStatsUI();
             showToast("복습 노트에서 삭제되었습니다.");
         }
 
@@ -409,7 +343,6 @@
             localStorage.setItem("hanzi_wrong_notes", JSON.stringify(wrongAnswers));
             updateWrongBadge();
             renderWrongNotes();
-            updateStatsUI();
             showToast("복습 노트가 초기화되었습니다.");
         }
 
