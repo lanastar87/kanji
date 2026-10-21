@@ -60,6 +60,17 @@
         
         <!-- ================= QUIZ SECTION ================= -->
         <section id="section-quiz" class="space-y-6">
+            <!-- Progress Bar & Deck Status -->
+            <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 flex flex-col space-y-2">
+                <div class="flex justify-between items-center text-sm font-semibold text-slate-600">
+                    <span>진행 상황</span>
+                    <span id="deck-progress-text" class="text-indigo-600 font-bold">0 / 0</span>
+                </div>
+                <div class="w-full bg-slate-100 h-3 rounded-full overflow-hidden">
+                    <div id="deck-progress-bar" class="bg-indigo-600 h-full w-0 transition-all duration-300 rounded-full"></div>
+                </div>
+            </div>
+
             <!-- Stats Dashboard -->
             <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <!-- Stats: Total Answered -->
@@ -68,7 +79,7 @@
                         <i class="fa-solid fa-layer-group text-2xl"></i>
                     </div>
                     <div>
-                        <div class="text-xs text-slate-500 font-medium">학습한 횟수</div>
+                        <div class="text-xs text-slate-500 font-medium">총 학습 횟수</div>
                         <div id="stat-total" class="text-2xl font-bold text-slate-800">0</div>
                     </div>
                 </div>
@@ -187,6 +198,33 @@
         <span id="toast-message">알림 메시지</span>
     </div>
 
+    <!-- Completion Modal -->
+    <div id="completion-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-white rounded-3xl p-6 md:p-8 max-w-sm w-full text-center shadow-2xl space-y-5 animate-bounce-once">
+            <div class="w-16 h-16 bg-amber-100 text-amber-500 rounded-full flex items-center justify-center mx-auto text-3xl">
+                <i class="fa-solid fa-trophy"></i>
+            </div>
+            <div>
+                <h3 class="text-2xl font-bold text-slate-800">학습 완료!</h3>
+                <p class="text-sm text-slate-500 mt-1">등록된 모든 한자를 한 번씩 다 학습하셨습니다.</p>
+            </div>
+            <div class="bg-slate-50 p-4 rounded-2xl space-y-2 text-sm">
+                <div class="flex justify-between">
+                    <span class="text-slate-500">이번 라운드 알고 있는 한자</span>
+                    <span id="round-known-count" class="font-bold text-emerald-600">0개</span>
+                </div>
+                <div class="flex justify-between">
+                    <span class="text-slate-500">이번 라운드 모르겠는 한자</span>
+                    <span id="round-unknown-count" class="font-bold text-rose-500">0개</span>
+                </div>
+            </div>
+            <button onclick="restartDeck()" class="w-full py-3.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl shadow-md transition-all flex items-center justify-center space-x-2">
+                <i class="fa-solid fa-rotate-right"></i>
+                <span>다시 시작하기</span>
+            </button>
+        </div>
+    </div>
+
     <script>
         /* ================= 문제 데이터 =================
            아래 HANZI_DATA 배열에 원하시는 한자와 뜻/음만 간단히 작성하시면 됩니다.
@@ -194,7 +232,7 @@
            - mean: 정답 (뜻과 음)
         ================================================= */
         const HANZI_DATA = [
-            { hanzi: "住", mean: "집 주" },
+           { hanzi: "住", mean: "집 주" },
             { hanzi: "文", mean: "글 문" },
             { hanzi: "事", mean: "일 사" },
             { hanzi: "富", mean: "넉넉할 부" },
@@ -218,6 +256,12 @@
         let currentQuestion = null;
         let isRevealed = false;
         
+        // Deck Management State
+        let currentDeck = [];
+        let currentIndex = 0;
+        let roundKnown = 0;
+        let roundUnknown = 0;
+
         let stats = {
             total: 0,
             known: 0
@@ -228,15 +272,41 @@
         window.onload = function() {
             loadStats();
             updateWrongBadge();
+            initDeck();
             generateQuestion();
         };
 
+        // Initialize and shuffle the deck
+        function initDeck() {
+            // Clone and Fisher-Yates shuffle
+            currentDeck = [...HANZI_DATA];
+            for (let i = currentDeck.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [currentDeck[i], currentDeck[j]] = [currentDeck[j], currentDeck[i]];
+            }
+            currentIndex = 0;
+            roundKnown = 0;
+            roundUnknown = 0;
+            updateDeckProgress();
+        }
+
+        function updateDeckProgress() {
+            const total = currentDeck.length;
+            const progress = currentIndex;
+            document.getElementById("deck-progress-text").innerText = `${progress} / ${total}`;
+            const percent = total > 0 ? (progress / total) * 100 : 0;
+            document.getElementById("deck-progress-bar").style.width = `${percent}%`;
+        }
+
         function generateQuestion() {
+            // Check if deck is finished
+            if (currentIndex >= currentDeck.length) {
+                showCompletionModal();
+                return;
+            }
+
             isRevealed = false;
-            
-            // Pick a random question
-            const randomIndex = Math.floor(Math.random() * HANZI_DATA.length);
-            currentQuestion = HANZI_DATA[randomIndex];
+            currentQuestion = currentDeck[currentIndex];
 
             // Render Hanzi
             document.getElementById("quiz-hanzi").innerText = currentQuestion.hanzi;
@@ -247,6 +317,8 @@
             document.getElementById("prompt-text").classList.remove("hidden");
             document.getElementById("reveal-btn").classList.remove("hidden");
             document.getElementById("evaluation-btns").classList.add("hidden");
+
+            updateDeckProgress();
         }
 
         function revealAnswer() {
@@ -265,15 +337,34 @@
 
             if (isKnown) {
                 stats.known++;
+                roundKnown++;
                 showToast("외운 한자로 기록되었습니다!");
             } else {
+                roundUnknown++;
                 addWrongNote(currentQuestion);
                 showToast("복습 노트에 추가되었습니다.");
             }
 
             saveStats();
             updateStatsUI();
+
+            // Advance to next question in deck
+            currentIndex++;
             generateQuestion();
+        }
+
+        function showCompletionModal() {
+            document.getElementById("round-known-count").innerText = `${roundKnown}개`;
+            document.getElementById("round-unknown-count").innerText = `${roundUnknown}개`;
+            document.getElementById("completion-modal").classList.remove("hidden");
+            updateDeckProgress(); // Set progress to full
+        }
+
+        function restartDeck() {
+            document.getElementById("completion-modal").classList.add("hidden");
+            initDeck();
+            generateQuestion();
+            showToast("새로운 순서로 퀴즈를 시작합니다!");
         }
 
         function saveStats() {
